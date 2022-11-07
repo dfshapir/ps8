@@ -10,6 +10,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(stats)
 library(readr)
+library(ggfortify)
+library(datarium)
+library(broom)
 set.seed(6800)
 options(scipen = 999)
 ```
@@ -42,6 +45,9 @@ data <- read.csv("x.csv")
 ### At the end of this process, you should have $m$ draws of $\hat{\beta}_0$ and $\hat{\beta}_1$ which serves as draws from your sampling distributions.  Generate a kernel density plot for your two sampling distributions.  Superimpose a line on each for the mean of the distributions.  From your simulations, does the OLS estimator appear to be unbiased?  Do the standard errors you get from the individual regressions match up to what you find from the sampling distributions?
 
 ```{r 1a}
+
+# Create empty dataframe 
+
 dataframe <- data.frame(matrix(ncol = 3, nrow = 1000))
 
 for(i in 1:1000){
@@ -56,6 +62,9 @@ m <- summary(regression)
 dataframe$X1[i] <- regression$coefficients[1]
 
 dataframe$X2[i] <- regression$coefficients[2]
+
+# I wanted to define a column as the standard error so I can better
+# understand further questions that ask for it.
 
 dataframe$X3[i] <- m$sigma
 }
@@ -182,12 +191,128 @@ hibbs <- read.csv("hibbs.csv")
 ```{r}
 reg2a <- lm(unemployment ~ percleft, data = hibbs)
 summary(reg2a)
+
+ggplot(hibbs, aes(x = percleft, y = unemployment)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Pct. of Years Leftist Parties in Power",
+       y = "Average Unemployment",
+       title = "Leftist Party Pct. and Average Unemployment",
+       subtitle = "Data from 12 Countries, 1945-1969")
 ```
+
+Here, we see that there is a negative relationship between the percentage of years that leftist parties have been in power in a given country and the average unemployment rate in that country over that period of time. The results are significant at the 0.05 level. The $R^2$ value is 0.4657, implying that a bit under 50% of the variability of the dependent variable (unemployment) can be explained by the independent variable (percleft). 
+
+The $R^2$ value isn't bad, but I'm not entirely convinced that this model is practically useful. While the $R^2$ number implies that this variable certainly does have some explanatory power, I'm not convinced. The variable being explained (unemployment) is an incredibly complicated variable, and the amount of data is very small. I would be much more convinced by this high of an $R^2$ value if the model were bigger.
+
+Let's look at some of the assumptions:
+
+1) Linearity in Parameters:
+
+A good test for linearity in parameters is the residuals vs. fitted values test. Below, we can run this:
+
+```{r}
+autoplot(reg2a, 1)
+```
+
+It's not great by any means, but at least the line is somewhat close to 0. I guess it could be worse, especially given the small sample size.
+
+2) Random Sampling
+
+This is definitely NOT a random sample. The author specifically chose 12 countries.
+
+3) Variation in X
+
+There is definitely variation; there are different values of x.
+
+4) Zero conditional mean
+
+In order to say that we have "zero conditional mean" it means that we have to have exogeneity. But here we definitely cannot discount the fact that the dependent variable could also depend on the independent variable. Maybe a certain rate of unemployment means that people are more likely to vote for more leftist governments. Also, my suspicion is that there are many omitted variables. We are only looking at a model with three variables here -- percleft, inflation, and unemployment. These are all incredibly complex variables that presumably have many more explanations.
+
+5) Homoskedasticity
+
+Honestly, this looks fairly homoskedastic. I don't see specific areas where there is more variation than others. There's one outlier, but I don't really feel like one outlier is enough to call a sample definitely non-homoskedastic.
+
+6) Normality
+
+Unfortunately, the errors are really not normally distributed. We can check by looking at these two plots. The outliers really make an impact on the regression.
+
+```{r}
+autoplot(reg2a, c(2, 5))
+```
+
 
 ### 2b) Run a regression of inflation on the independent variable government ideology.
 
 ```{r}
 reg2b <- lm(inflation ~ percleft, data = hibbs)
 summary(reg2b)
+
+ggplot(hibbs, aes(x = percleft, y = inflation)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  labs(x = "Pct. of Years Leftist Parties in Power",
+       y = "Average Inflation",
+       title = "Leftist Party Pct. and Average Inflation",
+       subtitle = "Data from 12 Countries, 1945-1969")
 ```
 
+Here, we see that there is a positive relationship between the percentage of years that leftist parties have been in power in a given country and the average inflation rate in that country over that period of time. The results are significant at the 0.01 level. The $R^2$ value is 0.5293, implying that a bit over 50% of the variability of the dependent variable (inflation) can be explained by the independent variable (percleft). 
+
+The $R^2$ value, again, isn't bad, but the same concerns I had for the first regression apply here as well. Again, the variable being explained (inflation) is an incredibly complicated variable, and the amount of data is very small. I would be much more convinced by this high of an $R^2$ value if the model were bigger.
+
+Let's look at some of the assumptions:
+
+1) Linearity in Parameters:
+
+A good test for linearity in parameters is the residuals vs. fitted values test. Below, we can run this:
+
+```{r}
+autoplot(reg2b, 1)
+```
+
+This one is a lot better than the other one. The line is much straighter and is more centered around 0.
+
+2) Random Sampling
+
+This is definitely NOT a random sample. The author specifically chose 12 countries.
+
+3) Variation in X
+
+There is definitely variation; there are different values of x.
+
+4) Zero conditional mean
+
+In order to say that we have "zero conditional mean" it means that we have to have exogeneity. Again, however, we have the same issue as the previous regression. We cannot discount the fact that the dependent variable could also depend on the independent variable. Maybe a certain rate of inflation means that people are more likely to vote for more leftist governments. Also, my previously-expressed suspicion about likely omitted variable bias holds here as well. 
+
+5) Homoskedasticity
+
+This looks fairly homoskedastic as well. I don't see specific areas where there is more variation than others. 
+
+6) Normality
+
+Let's do the same check as we did in 2a.
+
+```{r}
+autoplot(reg2b, c(2, 5))
+```
+
+This relationship is not perfect, but is certainly much better than the other one. There is less jaggedness and there aren't quite as many outliers. 
+
+### Question 3 Background:
+
+*Two weeks ago we looked at Olken's dataset, which showed that a random audit experiment did not reduce the amount of missing funds (a measure of corruption). A friend who hasn't taken PS 6800 comes to you with an observational dataset that they claim shows that audits $do$ reduce corruption in a different case (let's say Argentina).*
+
+*The dataset includes the variables \texttt{municipality}, \texttt{\%missing}, and \texttt{audit}. \texttt{audit} is a binary variable taking 0 if a municipality did not conduct a corruption audit, and 1 otherwise and  \texttt{\%missing} is the proportion of funds that went missing (so it falls between 0 and 1). Municipal councils decide whether or not to conduct an audit. About 30\% of observations for \texttt{\%missing} are missing. Your friend used OLS to analyze \texttt{lm(\%missing $\sim $audit)}. They find $\beta_1$ is equal to $-.15$, which they claim is the causal effect of audits on missing funds.*
+
+### 3a) Do you find the random sampling assumption for this dataset to be plausible? Why or why not? 
+
+I can't say for sure. I haven't seen the experiment structure yet -- all we're looking at is a dataset. Plus, the 30% of missing values is a real red flag. I don't know the experimental design, I don't know how the sampling went, etc. I would say that it's theoretically possible, but I'd like to see more information. 
+
+### 3b) Do you find the zero conditional mean assumption for this model to be plausible? Why or why not?
+
+I don't find the zero conditional mean assumption for this model to be plausible. There is a significant chance of endogeneity here; it could very well be that *because* a municipality is corrupt, they don't run audits. Thus, we can't fundamentally say that the zero conditional mean assumption is entirely plausible. 
+
+### 3c) Given your answers, do you believe that the municipal audits in Argentina lowered missing funds?
+
+I cannot say that for sure. I think that the answers to the previous two questions throw a lot of doubt on this. For one, it is difficult to determine for sure which way the causal arrow runs, and also, I'm not sure how random the sample is. 
